@@ -1,0 +1,161 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+type PodDetails struct {
+	Podname          string
+	Imagename        string
+	PodIp            string
+	HostIP           string
+	StartTime        string
+	Labels           map[string]string
+	PodUID           string
+	ContainerRunning bool
+	RestartCount     int
+	OpenPort         int
+	//todo Add cpu usage with this somehow
+
+}
+
+// ! main and package also need same struct - can we use different thing here
+
+func main() {
+
+	//! whats the use of ctx here
+	//Todo Need to set a client directory directly where we can use this connection directly to run kubernetes connection
+	userHomeDir, err := os.UserHomeDir() //?Getting user home directory
+	if err != nil {
+		fmt.Printf("error getting user home dir: %v\n", err)
+		os.Exit(1)
+	}
+	kubeConfigPath := filepath.Join(userHomeDir, ".kube", "config")
+	fmt.Printf("Using kubeconfig: %s\n", kubeConfigPath)
+
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		fmt.Printf("Error getting kubernetes config: %v\n", err)
+		os.Exit(1)
+	}
+
+	clientset, err := kubernetes.NewForConfig(kubeConfig)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	podName := "nginx-pod"
+	namespace := "default"
+	// containerName := "your-container-name"
+
+	// clientset.CoreV1(
+	logoptions := &v1.PodLogOptions{Follow: true}
+	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, logoptions)
+	stream, err := req.Stream(context.Background())
+	if err != nil {
+		fmt.Printf("Error opening stream: %v\n", err)
+		os.Exit(1)
+	}
+	defer stream.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, stream)
+	if err != nil {
+		fmt.Printf("Error reading from stream: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(buf.String())
+
+	// PodCreation()
+	// pods, err := clientset.CoreV1().Pods("default").List(context.Background(), metav1.ListOptions{})
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	// ctx := context.Background()
+
+	// arrayofpods := []PodDetails{}
+	// var finalArrayofPodDetails []PodDetails
+	// var finalarray []PodDetails
+
+	// events, err := clientset.CoreV1().Events("default").List(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("involvedObject.name=%s", "my-nginxdsdd")})
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	// Iterate through the events and print their details
+	// fmt.Println(events)
+
+	// formatted, _ := json.MarshalIndent(events, " ", " ")
+	// fmt.Println(string(formatted))
+	// if events.Items == 0 {
+
+	// }
+	// if len(events.Items) == 0 {
+	// 	fmt.Println("Pod running")
+
+	// } else {
+	// 	lastevent := events.Items[len(events.Items)-1] //retreiving last values
+	// 	fmt.Printf("Event Type: %s, Reason: %s, Message: %s,\n", lastevent.Type, lastevent.Reason, lastevent.Message)
+
+	// }
+	// for _, event := range events.Items {
+	// 	// if demovalue != 0 {
+	// 	fmt.Printf("Event Type: %s, Reason: %s, Message: %s,\n", event.Type, event.Reason, event.Message)
+	// 	// }
+	// 	// fmt.Printf("Event Type: %s, Reason: %s, Message: %s,\n", event.Type, event.Reason, event.Message)
+	// }
+
+	// formatted, _ := json.MarshalIndent(pods, " ", " ")
+	// fmt.Println(string(formatted))
+	// fmt.Printf("pods: %#v\n", pods)
+
+	// for _, pod := range pods.Items {
+
+	// 	// if pod.Status.ContainerStatuses[0].State.Running != nil && pod.Status.ContainerStatuses[0].State.Running.StartedAt != nil {
+	// 	// 	startedAt := time.Time(pod.Status.ContainerStatuses[0].State.Running.StartedAt.Time).String()
+	// 	// 	fmt.Printf("Started at: %s\n", startedAt)
+	// 	// } else {
+	// 	// 	fmt.Println("Container is not running yet")
+	// 	// }
+	// 	// startTime := pod.Status.ContainerStatuses[0].State.Running.StartedAt
+
+	// 	// startTimeAsTime := startTime.Format("2006-01-02 15:04:05")
+	// 	// fmt.Println(startTimeAsTime)
+
+	// 	tempPod := PodDetails{
+	// 		Podname:          pod.Name,
+	// 		Imagename:        pod.Spec.Containers[0].Image,
+	// 		PodIp:            pod.Status.PodIP,
+	// 		HostIP:           pod.Status.HostIP,
+	// 		StartTime:        "",
+	// 		Labels:           pod.Labels,
+	// 		PodUID:           string(pod.UID),
+	// 		ContainerRunning: pod.Status.ContainerStatuses[0].Ready,
+	// 		RestartCount:     int(pod.Status.ContainerStatuses[0].RestartCount),
+	// 		OpenPort:         80,
+	// 	}
+	// 	fmt.Println(pod.Name, pod.Spec.Containers[0].Image, pod.Status.PodIP, pod.Status.ContainerStatuses[0].Ready, pod.Status.ContainerStatuses[0].State.Running.StartedAt, pod.Status.ContainerStatuses[0].RestartCount, pod.UID, pod.Labels, pod.Status.HostIP, pod.Status.Phase, pod.Spec.NodeName)
+	// 	finalarray = append(finalarray, tempPod)
+	// 	// fmt.Println(pod.Name, pod.Status.Phase, pod.CreationTimestamp.Time, pod.Labels, pod.ManagedFields, pod.Namespace, pod.Spec.Hostname, pod.Spec.HostUsers, pod.Spec.NodeName, pod.Spec.Volumes, pod.Status)
+	// 	// fmt.Printf("Name: %s, Status: %s\n", pod.Name, pod.Status.Phase, pod.Labels, pod.CreationTimestamp.Time)
+
+	// 	// }
+
+	// 	// return finalArrayofPodDetails
+	// 	fmt.Println(len(finalarray))
+
+	// -
+	// }
+}
